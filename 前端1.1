@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SDN网络防御系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind 配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#165DFF',
+                        secondary: '#0FC6C2',
+                        success: '#00B42A',
+                        warning: '#FF7D00',
+                        danger: '#F53F3F',
+                        info: '#86909C',
+                        dark: '#1D2129',
+                        light: '#F2F3F5'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .scrollbar-hide {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+            }
+            .scrollbar-hide::-webkit-scrollbar {
+                display: none;
+            }
+            .card-hover {
+                transition: all 0.3s ease;
+            }
+            .card-hover:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            }
+            .pulse-animation {
+                animation: pulse 2s infinite;
+            }
+            @keyframes pulse {
+                0% {
+                    opacity: 1;
+                }
+                50% {
+                    opacity: 0.5;
+                }
+                100% {
+                    opacity: 1;
+                }
+            }
+            .gradient-bg {
+                background: linear-gradient(135deg, #165DFF 0%, #0FC6C2 100%);
+            }
+        }
+    </style>
+</head>
+<body class="font-inter bg-gray-50 text-dark min-h-screen flex flex-col">
+    <!-- 顶部导航栏 -->
+    <header class="bg-white shadow-md fixed top-0 left-0 right-0 z-50 transition-all duration-300" id="navbar">
+        <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <div class="h-10 w-10 rounded-lg gradient-bg flex items-center justify-center text-white">
+                    <i class="fa fa-shield-alt text-xl"></i>
+                </div>
+                <h1 class="text-xl font-bold text-primary hidden sm:block">SDN网络防御系统</h1>
+            </div>
+            
+            <div class="flex items-center space-x-6">
+                <div class="hidden md:flex items-center space-x-4">
+                    <a href="#dashboard" class="text-gray-600 hover:text-primary transition-colors font-medium">仪表盘</a>
+                    <a href="#defense" class="text-gray-600 hover:text-primary transition-colors font-medium">防御功能</a>
+                    <a href="#classification" class="text-gray-600 hover:text-primary transition-colors font-medium">数据包分类</a>
+                    <a href="#packet-info" class="text-gray-600 hover:text-primary transition-colors font-medium">数据包信息</a>
+                </div>
+                
+                <div class="relative">
+                    <button class="bg-primary/10 hover:bg-primary/20 text-primary rounded-full p-2 transition-colors">
+                        <i class="fa fa-bell"></i>
+                        <span class="absolute top-0 right-0 h-4 w-4 rounded-full bg-danger flex items-center justify-center text-white text-xs">3</span>
+                    </button>
+                </div>
+                
+                <div class="flex items-center space-x-2">
+                    <div class="h-8 w-8 rounded-full bg-gray-200 overflow-hidden">
+                        <img src="https://picsum.photos/200/200?random=1" alt="用户头像" class="h-full w-full object-cover">
+                    </div>
+                    <span class="hidden md:block font-medium">管理员</span>
+                </div>
+                
+                <button class="md:hidden text-gray-600 hover:text-primary transition-colors" id="mobile-menu-button">
+                    <i class="fa fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- 移动端菜单 -->
+        <div class="md:hidden bg-white shadow-lg absolute w-full left-0 top-full transform -translate-y-full opacity-0 transition-all duration-300 pointer-events-none" id="mobile-menu">
+            <div class="container mx-auto px-4 py-2 flex flex-col space-y-3">
+                <a href="#dashboard" class="text-gray-600 hover:text-primary transition-colors font-medium py-2">仪表盘</a>
+                <a href="#defense" class="text-gray-600 hover:text-primary transition-colors font-medium py-2">防御功能</a>
+                <a href="#classification" class="text-gray-600 hover:text-primary transition-colors font-medium py-2">数据包分类</a>
+                <a href="#packet-info" class="text-gray-600 hover:text-primary transition-colors font-medium py-2">数据包信息</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="flex-1 pt-16">
+        <!-- 仪表盘部分 -->
+        <section id="dashboard" class="py-8 px-4">
+            <div class="container mx-auto">
+                <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold text-gray-800 mb-6">网络安全仪表盘</h2>
+                
+                <!-- 安全状态卡片 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white rounded-xl shadow-lg p-6 card-hover border-l-4 border-primary">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <p class="text-gray-500 font-medium">安全状态</p>
+                                <h3 class="text-2xl font-bold text-gray-800 mt-1">良好</h3>
+                            </div>
+                            <div class="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                                <i class="fa fa-check-circle text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-center text-sm">
+                            <span class="text-success flex items-center">
+                                <i class="fa fa-arrow-up mr-1"></i> 89%
+                            </span>
+                            <span class="text-gray-500 ml-2">较上周</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-lg p-6 card-hover border-l-4 border-warning">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <p class="text-gray-500 font-medium">检测到的威胁</p>
+                                <h3 class="text-2xl font-bold text-gray-800 mt-1">27</h3>
+                            </div>
+                            <div class="h-12 w-12 rounded-full bg-warning/10 flex items-center justify-center text-warning">
+                                <i class="fa fa-exclamation-triangle text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-center text-sm">
+                            <span class="text-danger flex items-center">
+                                <i class="fa fa-arrow-up mr-1"></i> 12%
+                            </span>
+                            <span class="text-gray-500 ml-2">较上周</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-lg p-6 card-hover border-l-4 border-secondary">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <p class="text-gray-500 font-medium">防御成功次数</p>
+                                <h3 class="text-2xl font-bold text-gray-800 mt-1">156</h3>
+                            </div>
+                            <div class="h-12 w-12 rounded-full bg-secondary/10 flex items-center justify-center text-secondary">
+                                <i class="fa fa-shield text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-center text-sm">
+                            <span class="text-success flex items-center">
+                                <i class="fa fa-arrow-up mr-1"></i> 34%
+                            </span>
+                            <span class="text-gray-500 ml-2">较上周</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-lg p-6 card-hover border-l-4 border-info">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <p class="text-gray-500 font-medium">分析的数据包</p>
+                                <h3 class="text-2xl font-bold text-gray-800 mt-1">12,456</h3>
+                            </div>
+                            <div class="h-12 w-12 rounded-full bg-info/10 flex items-center justify-center text-info">
+                                <i class="fa fa-database text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="flex items-center text-sm">
+                            <span class="text-success flex items-center">
+                                <i class="fa fa-arrow-up mr-1"></i> 18%
+                            </span>
+                            <span class="text-gray-500 ml-2">较上周</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 图表区域 -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white rounded-xl shadow-lg p-6 lg:col-span-2">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-bold text-lg text-gray-800">威胁趋势分析</h3>
+                            <div class="flex space-x-2">
+                                <button class="px-3 py-1 text-xs rounded bg-primary/10 text-primary">今日</button>
+                                <button class="px-3 py-1 text-xs rounded bg-gray-100 text-gray-500 hover:bg-primary/10 hover:text-primary transition-colors">本周</button>
+                                <button class="px-3 py-1 text-xs rounded bg-gray-100 text-gray-500 hover:bg-primary/10 hover:text-primary transition-colors">本月</button>
+                            </div>
+                        </div>
+                        <div class="h-80">
+                            <canvas id="threatTrendChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-bold text-lg text-gray-800">威胁类型分布</h3>
+                            <button class="text-primary hover:text-primary/80 transition-colors">
+                                <i class="fa fa-ellipsis-v"></i>
+                            </button>
+                        </div>
+                        <div class="h-80">
+                            <canvas id="threatTypeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 实时告警 -->
+                <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="font-bold text-lg text-gray-800">实时告警</h3>
+                        <button class="text-primary hover:text-primary/80 transition-colors text-sm font-medium">
+                            查看全部 <i class="fa fa-arrow-right ml-1"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead>
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">时间</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">源IP</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">目标IP</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">威胁类型</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2025-05-22 10:45:32</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">192.168.1.101</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">10.0.0.5</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-danger/10 text-danger">
+                                            DDoS攻击
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-success/10 text-success">
+                                            已拦截
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-primary hover:text-primary/80 transition-colors">
+                                        <button>查看详情</button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2025-05-22 09:15:21</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">203.0.113.42</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">10.0.0.10</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-warning/10 text-warning">
+                                            端口扫描
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-info/10 text-info">
+                                            监控中
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-primary hover:text-primary/80 transition-colors">
+                                        <button>查看详情</button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2025-05-22 08:30:45</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">172.16.1.20</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">10.0.0.15</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-danger/10 text-danger">
+                                            SQL注入
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-success/10 text-success">
+                                            已拦截
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-primary hover:text-primary/80 transition-colors">
+                                        <button>查看详情</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- 防御功能模块 -->
+        <section id="defense" class="py-8 px-4 bg-gray-50">
+            <div class="container mx-auto">
+                <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold text-gray-800 mb-6">防御功能模块</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    <!-- 防御功能卡片 -->
+                    <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover">
+                        <div class="h-48 overflow-hidden">
+                            <img src="https://picsum.photos/600/400?random=10" alt="DDoS防御" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
+                        </div>
+                        <div class="p-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="font-bold text-lg text-gray-800">DDoS防御</h3>
+                                <div class="relative inline-block w-10 align-middle select-none transition duration-200 ease-in">
+                                    <input type="checkbox" name="toggle" id="ddos-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer checked:right-0 checked:border-primary transition-all duration-200" checked>
+                                    <label for="ddos-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer checked:bg-primary"></label>
+                                </div>
+                            </div>
+                            <p class="text-gray-600 mb-4">实时监测网络流量，智能识别并抵御各类DDoS攻击，保障网络服务可用性。</p>
+                            <div class="flex justify-between items-center">
+                                <div class="text-sm text-gray-500">
+                                    <span class="font-medium text-gray-900">防御阈值:</span> 100 Mbps
+                                </div>
+                                <button class="text-primary hover:text-primary/80 transition-colors text-sm font-medium">
+                                    配置 <i class="fa fa-cog ml-1"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover">
+                        <div class="h-48 overflow-hidden">
+                            <img src="https://picsum.photos/600/400?random=11" alt="入侵检测" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
+                        </div>
+                        <div class="p-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="font-bold text-lg text-gray-800">入侵检测</h3>
+                                <div class="relative inline-block w-10 align-middle select-none transition duration-200 ease-in">
+                                    <input type="checkbox" name="toggle" id="ids-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer checked:right-0 checked:border-primary transition-all duration-200" checked>
+                                    <label for="ids-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer checked:bg-primary"></label>
+                                </div>
+                            </div>
+                            <p class="text-gray-600 mb-4">基于规则和行为分析，实时检测网络中的异常活动和潜在入侵行为。</p>
+                            <div class="flex justify-between items-center">
+                                <div class="text-sm text-gray-500">
+                                    <span class="font-medium text-gray-900">检测规则:</span> 1,254
+                                </div>
+                                <button class="text-primary hover:text-primary/80 transition-colors text-sm font-medium">
+                                    配置 <i class="fa fa-cog ml-1"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover">
+                        <div class="h-48 overflow-hidden">
+                            <img src="https://picsum.photos/600/400?random=12" alt="防火墙" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
+                        </div>
+                        <div class="p-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="font-bold text-lg text-gray-800">智能防火墙</h3>
+                                <div class="relative inline-block w-10 align-middle select-none transition duration-200 ease-in">
+                                    <input type="checkbox" name="toggle" id="firewall-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer checked:right-0 checked:border-primary transition-all duration-200" checked>
+                                    <label for="firewall-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer checked:bg-primary"></label>
+                                </div>
+                            </div>
+                            <p class="text-gray-600 mb-4">基于SDN的动态防火墙，可根据网络状态和安全策略实时调整访问控制规则。</p>
+                            <div class="flex justify-between items-center">
+                                <div class="text-sm text-gray-500">
+                                    <span class="font-medium text-gray-900">活跃规则:</span> 54
+                                </div>
+                                <button class="text-primary hover:text-primary/80 transition-colors text-sm font-medium">
+                                    配置 <i class="fa fa-cog ml-1"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 防御配置面板 -->
+                <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="font-bold text-lg text-gray-800">防御策略配置</h3>
+                        <button class="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                            <i class="fa fa-plus mr-2"></i> 添加新策略
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">威胁检测灵敏度</label>
+                            <div class="relative">
+                                <input type="range" min="1" max="10" value="7" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary" id="sensitivity-slider">
+                                <div class="absolute -top-6 left-0 right-0 flex justify-between text-xs text-gray-500">
+                                    <span>低</span>
+                                    <span>中</span>
+                                    <span>高</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">自动防御响应</label>
+                            <select class="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-primary focus:border-primary">
+                                <option value="log">仅记录</option>
+                                <option value="alert" selected>告警并记录</option>
+                                <option value="block">告警、记录并阻止</option>
+                                <option value="custom">自定义响应</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- 防御规则表格 -->
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead>
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">规则名称</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">类型</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">优先级</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">最后更新</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="h-8 w-8 rounded-full bg-danger/10 flex items-center justify-center text-danger mr-3">
+                                                <i class="fa fa-exclamation-triangle"></i>
+                                            </div>
+                                            <div>
+                                                <div class="text-sm font-medium text-gray-900">SYN Flood防御</div>
+                                                <div class="text-xs text-gray-500">阻止异常SYN请求</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">DDoS</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-success/10 text-success">
+                                            启用
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">高</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2025-05-21 14:30:25</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex space-x-3">
+                                        <button class="text-primary hover:text-primary/80 transition-colors">
+                                            <i class="fa fa-pencil"></i>
+                                        </button>
+                                        <button class="text-danger hover:text-danger/80 transition-colors">
+                                            <i class="fa fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="h-8 w-8 rounded-full bg-warning/10 flex items-center justify-center text-warning mr-3">
+                                                <i class="fa fa-shield"></i>
+                                            </div>
+                                            <div>
+                                                <div class="text-sm font-medium text-gray-900">外部SSH访问限制</div>
+                                                <div class="text-xs text-gray-500">仅允许特定IP访问SSH</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">防火墙</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-success/10 text-success">
+                                            启用
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">中</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2025-05-20 09:15:40</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex space-x-3">
+                                        <button class="text-primary hover:text-primary/80 transition-colors">
+                                            <i class="fa fa-pencil"></i>
+                                        </button>
+                                        <button class="text-danger hover:text-danger/80 transition-colors">
+                                            <i class="fa fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="h-8 w-8 rounded-full bg-info/10 flex items-center justify-center text-info mr-3">
+                                                <i class="fa fa-database"></i>
+                                            </div>
+                                            <div>
+                                                <div class="text-sm font-medium text-gray-900">SQL注入防护</div>
+                                                <div class="text-xs text-gray-500">检测并阻止SQL注入攻击</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">IDS/IPS</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-success/10 text-success">
+                                            启用
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">高</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2025-05-18 16:45:12</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex space-x-3">
+                                        <button class="text-primary hover:text-primary/80 transition-colors">
+                                            <i class="fa fa-pencil"></i>
+                                        </button>
+                                        <button class="text-danger hover:text-danger/80 transition-colors">
+                                            <i class="fa fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- 数据包分类模块 -->
+        <section id="classification" class="py-8 px-4">
+            <div class="container mx-auto">
+                <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold text-gray-800 mb-6">数据包分类模块</h2>
+                
+                <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+                        <div>
+                            <h3 class="font-bold text-lg text-gray-800">实时数据包分类</h3>
+                            <p class="text-gray-500 mt-1">基于深度学习的数据包分类系统，实时分析网络流量</p>
+                        </div>
+                        <div class="mt-4 md:mt-0 flex space-x-3">
+                            <div class="relative">
+                                <input type="text" placeholder="搜索IP地址或端口..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary">
+                                <i class="fa fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            </div>
+                            <button class="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                                <i class="fa fa-refresh mr-2"></i> 刷新
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 分类统计 -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                        <div class="bg-gray-50 rounded-lg p-4 flex items-center">
+                            <div class="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary mr-4">
+                                <i class="fa fa-globe text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-gray-500 text-sm">总流量</p>
+                                <p class="text-2xl font-bold text-gray-800">4.2 GB</p>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-gray-50 rounded-lg p-4 flex items-center">
+                            <div class="h-12 w-12 rounded-full bg-success/10 flex items-center justify-center text-success mr-4">
+                                <i class="fa fa-check-circle text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-gray-500 text-sm">正常流量</p>
+                                <p class="text-2xl font-bold text-gray-800">3.8 GB</p>
+                                <p class="text-xs text-success">90.5%</p>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-gray-50 rounded-lg p-4 flex items-center">
+                            <div class="h-12 w-12 rounded-full bg-warning/10 flex items-center justify-center text-warning mr-4">
+                                <i class="fa fa-exclamation-triangle text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-gray-500 text-sm">可疑流量</p>
+                                <p class="text-2xl font-bold text-gray-800">256 MB</p>
+                                <p class="text-xs text-warning">6.1%</p>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-gray-50 rounded-lg p-4 flex items-center">
+                            <div class="h-12 w-12 rounded-full bg-danger/10 flex items-center justify-center text-danger mr-4">
+                                <i class="fa fa-times-circle text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-gray-500 text-sm">恶意流量</p>
+                                <p class="text-2xl font-bold text-gray-800">124 MB</p>
+                                <p class="text-xs text-danger">3.4%</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 数据包分类详情 -->
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead>
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">源IP</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">目标IP</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">协议</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">分类结果</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">流量大小</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">时间戳</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">192.168.1.101</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">104.28.32.168</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">HTTPS</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-success/10 text-success">
+                                            正常流量
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2.4 MB</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2025-05-22 11:20:15</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-primary hover:text-primary/80 transition-colors">
+                                        <button>详情</button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">172.16.1.20</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">208.67.222.222</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">DNS</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-success/10 text-success">
+                                            正常流量
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">1.8 KB</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2025-05-22 11:19:42</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-primary hover:text-primary/80 transition-colors">
+                                        <button>详情</button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">203.0.113.42</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">10.0.0.10</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">TCP</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-warning/10 text-warning">
+                                            可疑流量
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">45.2 KB</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2025-05-22 11:18:30</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-primary hover:text-primary/80 transition-colors">
+                                        <button>详情</button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">198.51.100.33</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">10.0.0.5</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">UDP</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-danger/10 text-danger">
+                                            恶意流量
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">87.6 KB</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2025-05-22 11:17:15</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-primary hover:text-primary/80 transition-colors">
+                                        <button>详情</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- 分页 -->
+                    <div class="flex justify-between items-center mt-6">
+                        <div class="text-sm text-gray-500">
+                            显示 1 到 4 条，共 124 条记录
+                        </div>
+                        <div class="flex space-x-1">
+                            <button class="px-3 py-1 border border-gray-300 rounded-md text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                <i class="fa fa-chevron-left"></i>
+                            </button>
+                            <button class="px-3 py-1 border border-primary bg-primary text-white rounded-md">1</button>
+                            <button class="px-3 py-1 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">2</button>
+                            <button class="px-3 py-1 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">3</button>
+                            <button class="px-3 py-1 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                                <i class="fa fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 分类模型配置 -->
+                <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="font-bold text-lg text-gray-800">分类模型配置</h3>
+                        <button class="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                            <i class="fa fa-plus mr-2"></i> 添加模型
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">当前使用的模型</label>
+                            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                <div class="flex items-center">
+                                    <div class="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary mr-3">
+                                        <i class="fa fa-brain text-xl"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-medium text-gray-900">深度学习分类器 v2.3</h4>
+                                        <p class="text-sm text-gray-500">准确率: 98.7% | 最后训练: 2025-05-15</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">模型更新</label>
+                            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h4 class="font-medium text-gray-900">有新的模型可用</h4>
+                                        <p class="text-sm text-gray-500">深度学习分类器 v2.4 (准确率: 99.2%)</p>
+                                    </div>
+                                    <button class="bg-primary hover:bg-primary/90 text-white px-3 py-1 rounded-md text-sm transition-colors">
+                                        更新
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <h4 class="font-medium text-gray-900 mb-4">模型性能指标</h4>
+                        <div class="h-64">
+                            <canvas id="modelPerformanceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- 数据包基本信息模块 -->
+        <section id="packet-info" class="py-8 px-4 bg-gray-50">
+            <div class="container mx-auto">
+                <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold text-gray-800 mb-6">数据包基本信息</h2>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white rounded-xl shadow-lg p-6 lg:col-span-2">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-bold text-lg text-gray-800">数据包详情</h3>
+                            <div class="flex space-x-2">
+                                <button class="text-gray-500 hover:text-primary transition-colors">
+                                    <i class="fa fa-download"></i>
+                                </button>
+                                <button class="text-gray-500 hover:text-primary transition-colors">
+                                    <i class="fa fa-share-alt"></i>
+                                </button>
+                                <button class="text-gray-500 hover:text-primary transition-colors">
+                                    <i class="fa fa-ellipsis-v"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <h4 class="font-medium text-gray-900 mb-4">基本信息</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <p class="text-sm text-gray-500">源IP地址</p>
+                                    <p class="font-medium text-gray-900">192.168.1.101</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">目标IP地址</p>
+                                    <p class="font-medium text-gray-900">104.28.32.168</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">源端口</p>
+                                    <p class="font-medium text-gray-900">54321</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">目标端口</p>
+                                    <p class="font-medium text-gray-900">443</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">协议</p>
+                                    <p class="font-medium text-gray-900">HTTPS</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">数据包大小</p>
+                                    <p class="font-medium text-gray-900">1,248 字节</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">时间戳</p>
+                                    <p class="font-medium text-gray-900">2025-05-22 11:20:15</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">分类结果</p>
+                                    <p class="font-medium text-success">正常流量</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h4 class="font-medium text-gray-900 mb-4">数据包内容</h4>
+                            <div class="bg-gray-800 text-gray-200 rounded-lg p-4 overflow-x-auto h-64">
+                                <pre class="text-xs font-mono leading-relaxed">0000   45 00 04 e8 6b 77 40 00  40 06 8c 3d c0 a8 01 65   E...kw@.@..=. ...e
+0016   68 1c 20 a8 d4 31 01 bb  80 18 01 00 9f 5a 00 00   h......1.......Z..
+0032   01 01 08 0a 1b 4c 5d 7f  1b 4c 5d 7f 17 03 03 00   .....L]..L].....
+0048   7a 01 00 00 76 03 03 54  65 e3 e0 00 20 00 33 00   z...v..Te... ..3.
+0064   2f 00 05 00 04 00 16 00  13 00 0a 00 15 00 12 00   /...............
+0080   09 00 14 00 11 00 08 00  06 00 03 00 01 00 02 00   ................
+0096   07 00 0d 00 0b 00 0c 00  0e 00 0f 00 10 00 17 00   ................
+0112   18 00 19 00 1a 00 1b 00  1c 00 1d 00 1e 00 1f 00   ................
+0128   20 00 21 00 22 00 23 00  24 00 25 00 26 00 27 00    .!.".#.$.%.&.'.
+0144   28 00 29 00 2a 00 2b 00  2c 00 2d 00 2e 00 2f 00   (.).*.+.,.-.../.
+0160   30 00 31 00 32 00 00 00  00 00 00 00 00 00 00 00   0.1.2...........
+0176   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ................
+0192   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ................
+0208   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ................
+0224   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ................
+0240   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ................
+0256   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ................
+0272   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ................
+0288   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ................
+0304   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ................
+0320   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ................
+0336   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ................
+0352   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ................
+0368   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ................
+0384   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ................
+0400   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ................
+0416   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ................
+0432   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ................
+0448   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ................
+0464   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ................
+0480   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ................
+0496   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ................
+0512   00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00   ................</pre>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <div class="mb-6">
+                            <h3 class="font-bold text-lg text-gray-800 mb-4">IP地理位置</h3>
+                            <div class="h-64 bg-gray-100 rounded-lg overflow-hidden">
+                                <img src="https://picsum.photos/800/400?random=20" alt="IP地理位置地图" class="w-full h-full object-cover">
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 mt-4">
+                                <div>
+                                    <p class="text-sm text-gray-500">源IP位置</p>
+                                    <div class="flex items-center mt-1">
+                                        <i class="fa fa-map-marker text-primary mr-2"></i>
+                                        <span class="text-gray-900">本地网络</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">目标IP位置</p>
+                                    <div class="flex items-center mt-1">
+                                        <i class="fa fa-map-marker text-primary mr-2"></i>
+                                        <span class="text-gray-900">中国, 徐州</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h3 class="font-bold text-lg text-gray-800 mb-4">流量分析</h3>
+                            <div class="h-48">
+                                <canvas id="flowAnalysisChart"></canvas>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 mt-4">
+                                <div class="bg-gray-50 rounded-lg p-3">
+                                    <p class="text-sm text-gray-500">上传流量</p>
+                                    <p class="text-xl font-bold text-gray-900">1.2 MB</p>
+                                </div>
+                                <div class="bg-gray-50 rounded-lg p-3">
+                                    <p class="text-sm text-gray-500">下载流量</p>
+                                    <p class="text-xl font-bold text-gray-900">3.8 MB</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 相关数据包 -->
+                <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="font-bold text-lg text-gray-800">相关数据包</h3>
+                        <button class="text-primary hover:text-primary/80 transition-colors text-sm font-medium">
+                            查看全部 <i class="fa fa-arrow-right ml-1"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead>
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">时间戳</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">源IP</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">目标IP</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">协议</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">大小</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2025-05-22 11:20:15</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">192.168.1.101</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">104.28.32.168</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">HTTPS</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">1.2 KB</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-primary hover:text-primary/80 transition-colors">
+                                        <button>查看</button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2025-05-22 11:20:14</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">192.168.1.101</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">104.28.32.168</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">HTTPS</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">0.8 KB</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-primary hover:text-primary/80 transition-colors">
+                                        <button>查看</button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2025-05-22 11:20:12</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">192.168.1.101</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">104.28.32.168</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">HTTPS</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">1.5 KB</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-primary hover:text-primary/80 transition-colors">
+                                        <button>查看</button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2025-05-22 11:20:10</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">192.168.1.101</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">104.28.32.168</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">HTTPS</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">0.6 KB</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-primary hover:text-primary/80 transition-colors">
+                                        <button>查看</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-white border-t border-gray-200 py-6">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <p class="text-gray-500 text-sm">&copy; 2025 SDN网络防御系统. 保留所有权利.</p>
+                </div>
+                <div class="flex space-x-6">
+                    <a href="#" class="text-gray-500 hover:text-primary transition-colors">
+                        <i class="fa fa-github text-xl"></i>
+                    </a>
+                    <a href="#" class="text-gray-500 hover:text-primary transition-colors">
+                        <i class="fa fa-twitter text-xl"></i>
+                    </a>
+                    <a href="#" class="text-gray-500 hover:text-primary transition-colors">
+                        <i class="fa fa-linkedin text-xl"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script>
+        // 导航栏滚动效果
+        window.addEventListener('scroll', function() {
+            const navbar = document.getElementById('navbar');
+            if (window.scrollY > 10) {
+                navbar.classList.add('py-2');
+                navbar.classList.remove('py-3');
+            } else {
+                navbar.classList.add('py-3');
+                navbar.classList.remove('py-2');
+            }
+        });
+        
+        // 移动端菜单
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+        
+        mobileMenuButton.addEventListener('click', function() {
+            if (mobileMenu.classList.contains('opacity-0')) {
+                mobileMenu.classList.remove('opacity-0', '-translate-y-full', 'pointer-events-none');
+                mobileMenu.classList.add('opacity-100', 'translate-y-0', 'pointer-events-auto');
+                mobileMenuButton.innerHTML = '<i class="fa fa-times text-xl"></i>';
+            } else {
+                mobileMenu.classList.add('opacity-0', '-translate-y-full', 'pointer-events-none');
+                mobileMenu.classList.remove('opacity-100', 'translate-y-0', 'pointer-events-auto');
+                mobileMenuButton.innerHTML = '<i class="fa fa-bars text-xl"></i>';
+            }
+        });
+        
+        // 平滑滚动
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+                
+                // 关闭移动端菜单
+                if (!mobileMenu.classList.contains('opacity-0')) {
+                    mobileMenu.classList.add('opacity-0', '-translate-y-full', 'pointer-events-none');
+                    mobileMenu.classList.remove('opacity-100', 'translate-y-0', 'pointer-events-auto');
+                    mobileMenuButton.innerHTML = '<i class="fa fa-bars text-xl"></i>';
+                }
+            });
+        });
+        
+        // 图表初始化
+        window.addEventListener('load', function() {
+            // 威胁趋势图表
+            const threatTrendCtx = document.getElementById('threatTrendChart').getContext('2d');
+            new Chart(threatTrendCtx, {
+                type: 'line',
+                data: {
+                    labels: ['00:00', '03:00', '06:00', '09:00', '12:00', '15:00', '18:00', '21:00'],
+                    datasets: [
+                        {
+                            label: 'DDoS攻击',
+                            data: [3, 5, 2, 8, 4, 6, 3, 5],
+                            borderColor: '#F53F3F',
+                            backgroundColor: 'rgba(245, 63, 63, 0.1)',
+                            tension: 0.3,
+                            fill: true
+                        },
+                        {
+                            label: '端口扫描',
+                            data: [1, 2, 4, 3, 5, 2, 1, 3],
+                            borderColor: '#FF7D00',
+                            backgroundColor: 'rgba(255, 125, 0, 0.1)',
+                            tension: 0.3,
+                            fill: true
+                        },
+                        {
+                            label: 'SQL注入',
+                            data: [0, 1, 0, 2, 1, 0, 1, 0],
+                            borderColor: '#165DFF',
+                            backgroundColor: 'rgba(22, 93, 255, 0.1)',
+                            tension: 0.3,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                drawBorder: false,
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    },
+                    animation: {
+                        duration: 2000,
+                        easing: 'easeOutQuart'
+                    }
+                }
+            });
+            
+            // 威胁类型分布图表
+            const threatTypeCtx = document.getElementById('threatTypeChart').getContext('2d');
+            new Chart(threatTypeCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['DDoS攻击', '端口扫描', 'SQL注入', '恶意软件', '其他'],
+                    datasets: [{
+                        data: [45, 25, 15, 10, 5],
+                        backgroundColor: [
+                            '#F53F3F',
+                            '#FF7D00',
+                            '#165DFF',
+                            '#722ED1',
+                            '#86909C'
+                        ],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        }
+                    },
+                    cutout: '70%',
+                    animation: {
+                        animateRotate: true,
+                        animateScale: true
+                    }
+                }
+            });
+            
+            // 模型性能图表
+            const modelPerformanceCtx = document.getElementById('modelPerformanceChart').getContext('2d');
+            new Chart(modelPerformanceCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['准确率', '精确率', '召回率', 'F1分数'],
+                    datasets: [{
+                        label: '当前模型',
+                        data: [98.7, 99.2, 97.8, 98.5],
+                        backgroundColor: '#165DFF',
+                        borderRadius: 4
+                    }, {
+                        label: '上一版本',
+                        data: [97.5, 98.1, 96.8, 97.4],
+                        backgroundColor: '#86909C',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            min: 95,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            },
+                            grid: {
+                                drawBorder: false,
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 2000,
+                        easing: 'easeOutQuart'
+                    }
+                }
+            });
+            
+            // 流量分析图表
+            const flowAnalysisCtx = document.getElementById('flowAnalysisChart').getContext('2d');
+            new Chart(flowAnalysisCtx, {
+                type: 'line',
+                data: {
+                    labels: ['0s', '1s', '2s', '3s', '4s', '5s', '6s', '7s', '8s', '9s', '10s'],
+                    datasets: [{
+                        label: '上传',
+                        data: [12, 19, 13, 15, 20, 18, 14, 16, 19, 15, 12],
+                        borderColor: '#165DFF',
+                        backgroundColor: 'rgba(22, 93, 255, 0.1)',
+                        tension: 0.3,
+                        fill: true
+                    }, {
+                        label: '下载',
+                        data: [30, 25, 35, 28, 32, 27, 31, 29, 33, 26, 30],
+                        borderColor: '#00B42A',
+                        backgroundColor: 'rgba(0, 180, 42, 0.1)',
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                boxWidth: 12,
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                drawBorder: false,
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 2000,
+                        easing: 'easeOutQuart'
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+    
